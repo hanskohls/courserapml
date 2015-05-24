@@ -1,0 +1,193 @@
+---
+title: "Results"
+author: "Hans Kohls"
+date: "23/05/2015"
+output: html_document
+---
+
+# Introduction
+
+As part of the Coursera Data Science Specialization this report summarizes the activities undertaken to complete the project for the Machine Learning course. 
+
+As part of the excercise, data from the Human Activity Recognigtion project was used to determine 5 classes of excercises with dumbells. The dataset is available at http://groupware.les.inf.puc-rio.br/har.
+
+# Data Exploration
+
+The data that was imported consisted of numerous empty columns which were also not reflected in the dataset supplied for validaton in the project. So a total of 50 measurements was used as features to identify the activity class.
+
+```{r eval=FALSE}
+
+data_columns_row=c(
+    "roll_belt", "pitch_belt", "yaw_belt", "total_accel_belt",
+    "gyros_belt_x", "gyros_belt_y", "gyros_belt_z",
+    "accel_belt_x", "accel_belt_y", "accel_belt_z",
+    "magnet_belt_x", "magnet_belt_y", "magnet_belt_z",
+    "roll_arm", "pitch_arm", "yaw_arm", 
+    "gyros_arm_x", "gyros_arm_y", "gyros_arm_z",
+    "accel_arm_x", "accel_arm_y", "accel_arm_z",
+    "magnet_arm_x", "magnet_arm_y", "magnet_arm_z",
+    "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell",
+    "gyros_dumbbell_x", "gyros_dumbbell_y", "gyros_dumbbell_z",
+    "accel_dumbbell_x", "accel_dumbbell_y", "accel_dumbbell_z",
+    "magnet_dumbbell_x", "magnet_dumbbell_y", "magnet_dumbbell_z",
+    "roll_forearm", "pitch_forearm", "yaw_forearm",
+    "total_accel_forearm", 
+    "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z", 
+    "accel_forearm_x", "accel_forearm_y", "accel_forearm_z",
+    "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z",
+    # Activity Class
+    "classe")
+
+```
+
+## Pre-Processing
+
+Based on a number of early models I identified that various training methods available in the caret package could not handle more than between 1 and 10% of the full data set as a training set on my environment. I also noticed strong correlations between some of the features. 
+
+To improve the outcome, I applied centering and scaling as preprocessing methods. I also tested a reduction of the degrees of freedom for each record by applying primary component analysis, but this was dismissed in the end. 
+
+```{r eval=FALSE}
+preProc <- preProcess(training[,1:50], method=c('center', 'scale'))
+trainPP <- predict(preProc,training[,1:50])
+testPP <- predict(preProc,testing[,1:50])
+projectPP <- predict(preProc,project)
+
+```
+
+In the final model, my system could handle training data at a rate of 30% of the full data set. So data was generated accordingly.
+
+```{r eval=FALSE}
+inTrain <- createDataPartition(y=data_by_row$classe, p=0.3, list=F)
+training <- data_by_row[inTrain,]
+testing <- data_by_row[-inTrain,]
+```
+
+## Model Selection
+
+Various classification training methods, such as randomForests, ctree, ada, gbm were tested with various sets of preProcessed training data. The gbm method performed best for a selection of 10 training sets with 3% of the full data. This was subsequently selected for the final model. 
+
+```{r eval=FALSE}
+model = train(training$classe ~ ., method="gbm", data=trainPP)
+```
+
+## Model Validation
+
+The model was then validated by reviewing the confusion matrix and calculating the accuracy on the test data set. The accuracy was in excess of 95% on the training data set. Repetitive runs using different seeds to select the training data set confirmed this as a reliable level of accuracy. 
+
+```{r eval=FALSE}
+cmatrix_train = table(train_result,training$classe)
+accuracy_train = sum(diag(cmatrix_train))/sum(cmatrix_train)
+accuracy_train
+cmatrix_test = table(test_result,testing$classe)
+cmatrix_test
+accuracy_test = sum(diag(cmatrix_test))/sum(cmatrix_test)
+accuracy_test
+```
+
+# Apendix - Full Final Model
+```{r}
+library(caret)
+library(randomForest)
+library(bigrf)
+library(SDMTools)
+library(mboost)
+library(party)
+
+# importing the data
+setwd("~/docs/Private/Data Science Track/Pracitcal Machine Learning/project")
+
+data_columns_row=c(
+    "roll_belt",
+    "pitch_belt",
+    "yaw_belt",
+    "total_accel_belt",
+    "gyros_belt_x",
+    "gyros_belt_y",
+    "gyros_belt_z",
+    "accel_belt_x",
+    "accel_belt_y",
+    "accel_belt_z",
+    "magnet_belt_x",
+    "magnet_belt_y",
+    "magnet_belt_z",
+    "roll_arm",
+    "pitch_arm",
+    "yaw_arm",
+    "gyros_arm_x",
+    "gyros_arm_y",
+    "gyros_arm_z",
+    "accel_arm_x",
+    "accel_arm_y",
+    "accel_arm_z",
+    "magnet_arm_x",
+    "magnet_arm_y",
+    "magnet_arm_z",
+    "roll_dumbbell",
+    "pitch_dumbbell",
+    "yaw_dumbbell",
+    "gyros_dumbbell_x",
+    "gyros_dumbbell_y",
+    "gyros_dumbbell_z",
+    "accel_dumbbell_x",
+    "accel_dumbbell_y",
+    "accel_dumbbell_z",
+    "magnet_dumbbell_x",
+    "magnet_dumbbell_y",
+    "magnet_dumbbell_z",
+    "roll_forearm",
+    "pitch_forearm",
+    "yaw_forearm",
+    "total_accel_forearm",
+    "gyros_forearm_x",
+    "gyros_forearm_y",
+    "gyros_forearm_z",
+    "accel_forearm_x",
+    "accel_forearm_y",
+    "accel_forearm_z",
+    "magnet_forearm_x",
+    "magnet_forearm_y",
+    "magnet_forearm_z",
+    "classe")
+
+data = read.csv(file="pml-training.csv", header=T, sep=",")
+data_by_row = data[,data_columns_row]
+
+proj_data =  read.csv(file="pml-testing.csv", header=T, sep=",")
+proj_data_by_row = proj_data[,data_columns_row[1:50]]
+
+set.seed(20150523)
+
+
+# building training data
+inTrain <- createDataPartition(y=data_by_row$classe, p=0.3, list=F)
+training <- data_by_row[inTrain,]
+testing <- data_by_row[-inTrain,]
+project <- proj_data_by_row
+dim(training)
+dim(testing)
+
+
+# Doing PCA
+preProc <- preProcess(training[,1:50], method=c('center', 'scale'))
+trainPP <- predict(preProc,training[,1:50])
+testPP <- predict(preProc,testing[,1:50])
+projectPP <- predict(preProc,project)
+
+model = train(training$classe ~ ., method="gbm", data=trainPP, verbose=FALSE)
+
+train_result = predict(model, newdata=trainPP)
+test_result = predict(model, newdata=testPP)
+project_result = predict(model, newdata=projectPP)
+
+
+cmatrix_train = table(train_result,training$classe)
+accuracy_train = sum(diag(cmatrix_train))/sum(cmatrix_train)
+accuracy_train
+cmatrix_test = table(test_result,testing$classe)
+cmatrix_test
+accuracy_test = sum(diag(cmatrix_test))/sum(cmatrix_test)
+accuracy_test
+
+project_result
+
+```
